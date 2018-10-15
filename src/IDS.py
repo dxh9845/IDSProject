@@ -1,6 +1,6 @@
 """
 Filename: IDS.py
-Description: Produces Scikit Learn model for training / testing
+Description: Produces Scikit Learn moqudel for training / testing
 Date: 10/9/2018
 Author: Daniel Herzig, Andrew Bertonica
 """
@@ -9,11 +9,11 @@ import pandas as pd
 import numpy as np
 from timeit import default_timer as timer
 from collections import defaultdict
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
 class PreprocessResult():
     def __init__(self, regular_dataset, feature_dataset, class_dataset, label_values):
@@ -108,10 +108,14 @@ def ReadAndPreprocess(filename,
     # Strip the column names of whitespace
     df_reg.columns = df_reg.columns.str.strip()
 
-    # Fill infinities with the largest number possible for float32
-    df_reg.replace(['Infinity'], np.nan_to_num(np.float32('inf')), inplace=True)
+    # Fill infinities with a negative 2
+    df_reg.replace(['Infinity'], -2, inplace=True)
     # Fill NA's with -1s
     df_reg.fillna(-1, inplace=True)
+
+    # One hot encode whether fields are infinity
+    df_reg['FlowByteInf'] = df_reg['Flow Bytes/s'] == -2
+    df_reg['FlowPacketInf'] = df_reg['Flow Packets/s'] == -2
 
     # Drop the timestamp field 
     df_reg = df_reg.drop('Timestamp', 1)
@@ -168,7 +172,7 @@ def ReadAndPreprocess(filename,
 
     encoded_labels['Source IP'] = source_uniques
     encoded_labels['Destination IP'] = destination_uniques
-
+    
     if check_weird_cols == True:
         for col in df_reg.columns:
             weird = (df_reg[[col]].applymap(type) != df_reg[[col]].iloc[0].apply(type)).any(axis=1)
@@ -181,6 +185,28 @@ def ReadAndPreprocess(filename,
     print("Completed prepping {0} dataset @ {1:.2f} seconds".format(easyname, end-start))
 
     return PreprocessResult(df_reg, df_feat, df_label, encoded_labels)
+
+def RunModel(ModelObj, DataDict, ClassifierName):
+
+    ModelObj.fit(DataDict['x_train'], DataDict['y_train'])
+
+    start = timer()
+    y_predict = ModelObj.predict(DataDict['x_test'])
+    end = timer()
+
+    accuracy = accuracy_score(DataDict['y_test'], y_predict)
+    conf_matrix = confusion_matrix(DataDict['y_test'], y_predict, labels=DataDict['class_labels'])
+    report_dict = classification_report(
+        DataDict['y_test'], y_predict, target_names=DataDict['class_labels'], output_dict=True)
+
+    # Return the different metrics
+    return {
+        'class_name': ClassifierName,
+        'time_to_run': end-start,
+        'accuracy': accuracy,
+        'conf_matrix': conf_matrix,
+        'report_dict': report_dict
+    }
 
 if __name__ == '__main__':
     
