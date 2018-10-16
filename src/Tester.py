@@ -50,26 +50,26 @@ if __name__ == '__main__':
         easyname='ThursdayAfternoon',
         verbose=True)
 
-    # FridayMorningResult = ReadAndPreprocess(
-    #     r"ProjectFiles\GeneratedLabelledFlows\TrafficLabelling\Friday-WorkingHours-Morning.pcap_ISCX.csv",
-    #     col_datatypes=specify_datatypes,
-    #     undersample_benign=True,
-    #     easyname='Wednesday',
-    #     verbose=True)
+    FridayMorningResult = ReadAndPreprocess(
+        r"ProjectFiles\GeneratedLabelledFlows\TrafficLabelling\Friday-WorkingHours-Morning.pcap_ISCX.csv",
+        col_datatypes=specify_datatypes,
+        undersample_benign=False,
+        easyname='FridayMorning',
+        verbose=True)
 
-    # FridayAfternoonResult1 = ReadAndPreprocess(
-    #     r"ProjectFiles\GeneratedLabelledFlows\TrafficLabelling\Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv",
-    #     col_datatypes=specify_datatypes,
-    #     undersample_benign=True,
-    #     easyname='Wednesday',
-    #     verbose=True)
+    FridayAfternoonResult1 = ReadAndPreprocess(
+        r"ProjectFiles\GeneratedLabelledFlows\TrafficLabelling\Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv",
+        col_datatypes=specify_datatypes,
+        undersample_benign=False,
+        easyname='FridayAfternoon1',
+        verbose=True)
 
-    # FridayAfternoonResult2 = ReadAndPreprocess(
-    #     r"ProjectFiles\GeneratedLabelledFlows\TrafficLabelling\Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
-    #     col_datatypes=specify_datatypes,
-    #     undersample_benign=True,
-    #     easyname='Wednesday',
-    #     verbose=True)
+    FridayAfternoonResult2 = ReadAndPreprocess(
+        r"ProjectFiles\GeneratedLabelledFlows\TrafficLabelling\Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
+        col_datatypes=specify_datatypes,
+        undersample_benign=False,
+        easyname='FridayAfternoon2',
+        verbose=True)
 
 
     feature_df = pd.concat(
@@ -79,9 +79,9 @@ if __name__ == '__main__':
             WednesdayResult.feature_dataset, 
             ThursdayMorningResult.feature_dataset,
             ThursdayAfternoonResult.feature_dataset,
-            # FridayMorningResult.feature_dataset,
-            # FridayAfternoonResult1.feature_dataset,
-            # FridayAfternoonResult2.feature_dataset
+            FridayMorningResult.feature_dataset,
+            FridayAfternoonResult1.feature_dataset,
+            FridayAfternoonResult2.feature_dataset
         ])
 
     class_df = pd.concat(
@@ -91,9 +91,9 @@ if __name__ == '__main__':
             WednesdayResult.class_dataset,
             ThursdayMorningResult.class_dataset,
             ThursdayAfternoonResult.class_dataset,
-            # FridayMorningResult.class_dataset,
-            # FridayAfternoonResult1.class_dataset,
-            # FridayAfternoonResult2.class_dataset
+            FridayMorningResult.class_dataset,
+            FridayAfternoonResult1.class_dataset,
+            FridayAfternoonResult2.class_dataset
         ]
     )
 
@@ -133,10 +133,23 @@ if __name__ == '__main__':
     ResultFour = RunModel(
         AdaBoostClassifier(),
         train_dict,
-        'Random Forest (Balanced)'
+        'Ada Boost'
     )
 
-    ResultList = [ResultOne, ResultTwo, ResultThree, ResultFour]
+    ResultFive = RunModel(
+        KNeighborsClassifier(weights='uniform'),
+        train_dict,
+        'K Nearest Neighbors (Uniform Weights)'
+    )
+
+    ResultSix = RunModel(
+        KNeighborsClassifier(weights='distance'),
+        train_dict,
+        'K Nearest Neighbors (Weighted Distance)'
+    )
+
+    # ResultList = [ResultFive]
+    ResultList = [ResultOne, ResultTwo, ResultThree, ResultFour, ResultFive, ResultSix]
 
     rawdata = defaultdict(list)
 
@@ -145,7 +158,7 @@ if __name__ == '__main__':
         rawdata['Accuracy'].append(result['accuracy'])
         rawdata['Confusion Matrix'].append(result['conf_matrix'])
         rawdata['Precision'].append(result['report_dict']['weighted avg']['precision'])
-        rawdata['Recall'].append(result['report_dict']['weighted avg']['recall'])
+        # rawdata['Recall'].append(result['report_dict']['weighted avg']['recall'])
         rawdata['F1-Score'].append(result['report_dict']['weighted avg']['f1-score'])
         rawdata['Time Elapsed'].append(result['time_to_run'])
 
@@ -153,6 +166,6 @@ if __name__ == '__main__':
     np.save('results.npy', rawdata)
     resultdf = pd.DataFrame.from_dict(rawdata).drop(columns=['Confusion Matrix'])
     resultdf.to_csv('mydata.csv', index=False, header=True, columns=[
-                    'Class Name', 'Time Elapsed', 'Precision', 'Recall', 'F1-Score', 'Accuracy'])
+                    'Class Name', 'Time Elapsed', 'Precision', 'F1-Score', 'Accuracy'])
 
 
