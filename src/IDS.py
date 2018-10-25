@@ -59,6 +59,7 @@ def ReadAndPreprocess(filename,
     undersample_benign=False,
     random_sample_pct=None,
     check_weird_cols=False,
+    make_anomaly=False,
     verbose=False):
     """
     Read a CSV file into a Pandas dataframe and preprocess it, splitting into a features dataframe and 
@@ -74,6 +75,7 @@ def ReadAndPreprocess(filename,
         undersample_benign {bool} -- Whether or not to undersample benign entries in hopes of evening dataset (default: {False})
         random_sample_pct {[None, Float]} -- Limit the size of the dataset to a specified percentage (default: {None})
         check_weird_cols {bool} -- Check for columns that contain mixed datatypes (default: {False})
+        make_anomaly {bool} - Whether to make this an anomaly IDS (benign = 0, non-benign = 1)
         verbose {bool} -- Print verbose output. (default: {False})
     Returns:
         PreprocessClass -- The Preprocess Result class contaiing (Original CSV Dataframe, Dataframe of Features, Dataframe of Classes, Dictionary of labels for encoded columns)
@@ -164,6 +166,11 @@ def ReadAndPreprocess(filename,
     # Retrieve our output class from the frame
     df_label = df_reg.Label
 
+    # Do we need to make this an anomaly dataset
+    if make_anomaly:
+        df_label = df_label.where(df_label != 'BENIGN', 0).mask(df_label != 'BENIGN', 1)
+        df_label = df_label.astype('int')
+
     encoded_labels = {}
 
     # Encode the IP addresses
@@ -188,13 +195,20 @@ def ReadAndPreprocess(filename,
 
 def RunModel(ModelObj, DataDict, ClassifierName):
 
+    start = timer()
     ModelObj.fit(DataDict['x_train'], DataDict['y_train'])
+    end = timer()
+
+    train_time = end-start
 
     start = timer()
     y_predict = ModelObj.predict(DataDict['x_test'])
     end = timer()
 
+    test_time  = end-start
+
     accuracy = accuracy_score(DataDict['y_test'], y_predict)
+    
     conf_matrix = confusion_matrix(DataDict['y_test'], y_predict, labels=DataDict['class_labels'])
     report_dict = classification_report(
         DataDict['y_test'], y_predict, target_names=DataDict['class_labels'], output_dict=True)
@@ -202,7 +216,8 @@ def RunModel(ModelObj, DataDict, ClassifierName):
     # Return the different metrics
     return {
         'class_name': ClassifierName,
-        'time_to_run': end-start,
+        'time_to_test': test_time,
+        'time_to_train': train_time,
         'accuracy': accuracy,
         'conf_matrix': conf_matrix,
         'report_dict': report_dict

@@ -15,6 +15,8 @@ if __name__ == '__main__':
         ' Source IP': object
     }
 
+    anomaly = True
+
     # MondayResult = ReadAndPreprocess(
     #     r"ProjectFiles\GeneratedLabelledFlows\TrafficLabelling\Monday-WorkingHours.pcap_ISCX.csv",
     #     col_datatypes=specify_datatypes,
@@ -27,6 +29,7 @@ if __name__ == '__main__':
         col_datatypes=specify_datatypes,
         undersample_benign=True,
         easyname='Tuesday',
+        make_anomaly=anomaly,
         verbose=True)
 
     WednesdayResult = ReadAndPreprocess(
@@ -34,6 +37,7 @@ if __name__ == '__main__':
         col_datatypes=specify_datatypes,
         undersample_benign=True,
         easyname='Wednesday',
+        make_anomaly=anomaly,
         verbose=True)
 
     ThursdayMorningResult = ReadAndPreprocess(
@@ -41,6 +45,7 @@ if __name__ == '__main__':
         col_datatypes=specify_datatypes,
         undersample_benign=True,
         easyname='ThursdayMorning',
+        make_anomaly=anomaly,
         verbose=True)
 
     ThursdayAfternoonResult = ReadAndPreprocess(
@@ -48,6 +53,7 @@ if __name__ == '__main__':
         col_datatypes=specify_datatypes,
         undersample_benign=True,
         easyname='ThursdayAfternoon',
+        make_anomaly=anomaly,
         verbose=True)
 
     FridayMorningResult = ReadAndPreprocess(
@@ -55,6 +61,7 @@ if __name__ == '__main__':
         col_datatypes=specify_datatypes,
         undersample_benign=False,
         easyname='FridayMorning',
+        make_anomaly=anomaly,
         verbose=True)
 
     FridayAfternoonResult1 = ReadAndPreprocess(
@@ -62,6 +69,7 @@ if __name__ == '__main__':
         col_datatypes=specify_datatypes,
         undersample_benign=False,
         easyname='FridayAfternoon1',
+        make_anomaly=anomaly,
         verbose=True)
 
     FridayAfternoonResult2 = ReadAndPreprocess(
@@ -69,6 +77,7 @@ if __name__ == '__main__':
         col_datatypes=specify_datatypes,
         undersample_benign=False,
         easyname='FridayAfternoon2',
+        make_anomaly=anomaly,
         verbose=True)
 
 
@@ -97,9 +106,11 @@ if __name__ == '__main__':
         ]
     )
 
-    # Turn the categories into numbers to keep track
-    # class_df, label_uniques = pd.factorize(class_df)
-    label_uniques = class_df.unique()
+    # The number of records
+    num_records = len(class_df)
+    num_columns = len(feature_df.columns)
+
+    print("There are {} records and {} columns after preprocessing.".format(num_records, num_columns))
 
     x_train, x_test, y_train, y_test = train_test_split(
         feature_df, class_df, test_size=0.33)
@@ -109,8 +120,22 @@ if __name__ == '__main__':
         'x_test': x_test, 
         'y_train': y_train, 
         'y_test': y_test,
-        'class_labels': label_uniques
     }
+
+    if not anomaly:
+        # Turn the categories into numbers to keep track
+        # class_df, label_uniques = pd.factorize(class_df)
+        label_uniques = class_df.unique()
+    else:
+        label_uniques = class_df.unique()
+        # if (label_uniques[0] == 0):
+        #     label_uniques[0] = "BENIGN"
+        #     label_uniques[1] = "ATTACK"
+        # else:
+        #     label_uniques[1] = "BENIGN"
+        #     label_uniques[0] = "ATTACK"
+    
+    train_dict['class_labels'] = label_uniques
 
     ResultOne = RunModel(
         RandomForestClassifier(class_weight='balanced'),
@@ -160,12 +185,13 @@ if __name__ == '__main__':
         rawdata['Precision'].append(result['report_dict']['weighted avg']['precision'])
         # rawdata['Recall'].append(result['report_dict']['weighted avg']['recall'])
         rawdata['F1-Score'].append(result['report_dict']['weighted avg']['f1-score'])
-        rawdata['Time Elapsed'].append(result['time_to_run'])
+        rawdata['Training Time'].append(result['time_to_train'])
+        rawdata['Testing Time'].append(result['time_to_test'])
 
 
     np.save('results.npy', rawdata)
     resultdf = pd.DataFrame.from_dict(rawdata).drop(columns=['Confusion Matrix'])
     resultdf.to_csv('mydata.csv', index=False, header=True, columns=[
-                    'Class Name', 'Time Elapsed', 'Precision', 'F1-Score', 'Accuracy'])
+                    'Class Name', 'Training Time', 'Testing Time', 'Precision', 'F1-Score', 'Accuracy'])
 
 
